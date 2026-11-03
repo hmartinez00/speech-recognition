@@ -1,0 +1,9 @@
+.opencode-secrets
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+*.wav
+*.mp3
+*.m4a
