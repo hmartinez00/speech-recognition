@@ -4,7 +4,8 @@ import sys
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, QPoint, Qt, Signal
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QPlainTextEdit,
@@ -96,76 +98,248 @@ class SpeechPromptWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Speech Prompt")
-        self.setMinimumSize(650, 520)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setMouseTracking(True)
+        self.resize(430, 285)
+        self.setMinimumSize(360, 240)
+        self._drag_position: QPoint | None = None
+        self._resize_origin: QPoint | None = None
+        self._resize_geometry = None
+        self._resize_edges = Qt.Edge(0)
+        self._path_visible = False
         self.worker: RecordingWorker | None = None
         self.thread: threading.Thread | None = None
         self.audio_path: Path | None = None
+        self.full_text_window: QMainWindow | None = None
 
         self.status_label = QLabel("Listo")
         self.status_label.setObjectName("status")
         self.text = QPlainTextEdit()
         self.text.setPlaceholderText("La frase reconocida aparecerá aquí…")
-        self.text.setMinimumHeight(180)
+        self.text.setMaximumHeight(92)
+        self.text.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
 
         self.file_input = QLineEdit(str(Path.cwd() / DEFAULT_FILE))
         self.file_input.setReadOnly(True)
-        browse = QPushButton("📁  Elegir archivo")
-        browse.clicked.connect(self.choose_file)
 
-        self.listen_button = QPushButton("🎙  Iniciar escucha")
+        self.listen_button = QPushButton("🎙")
+        self.listen_button.setToolTip("Iniciar escucha")
+        self.listen_button.setFixedWidth(48)
         self.listen_button.setObjectName("primary")
         self.listen_button.clicked.connect(self.toggle_recording)
-        copy_button = QPushButton("📋  Copiar texto")
+        copy_button = QPushButton("📋")
+        copy_button.setToolTip("Copiar texto al portapapeles")
+        copy_button.setFixedWidth(42)
         copy_button.clicked.connect(self.copy_text)
-        clear_button = QPushButton("🗑  Limpiar")
+        clear_button = QPushButton("🗑")
+        clear_button.setToolTip("Limpiar el texto visible")
+        clear_button.setFixedWidth(42)
         clear_button.clicked.connect(self.clear_text)
-        save_button = QPushButton("Guardar en archivo")
+        save_button = QPushButton("💾")
+        save_button.setToolTip("Guardar transcripción en el archivo")
+        save_button.setFixedWidth(42)
         save_button.clicked.connect(self.save_text)
+        review_button = QPushButton("🔍")
+        review_button.setToolTip("Abrir ventana con el texto completo")
+        review_button.setFixedWidth(42)
+        review_button.clicked.connect(self.show_full_text)
+        menu_button = QPushButton("☰")
+        menu_button.setToolTip("Más opciones")
+        menu_button.setFixedWidth(42)
+        menu_button.clicked.connect(self.show_options_menu)
 
-        file_row = QHBoxLayout()
-        file_row.addWidget(self.file_input, 1)
-        file_row.addWidget(browse)
+        self.minimize_button = QPushButton("—")
+        self.minimize_button.setToolTip("Minimizar")
+        self.minimize_button.clicked.connect(self.showMinimized)
+        self.maximize_button = QPushButton("□")
+        self.maximize_button.setToolTip("Maximizar/restaurar")
+        self.maximize_button.clicked.connect(self.toggle_maximize)
+        close_button = QPushButton("✕")
+        close_button.setObjectName("close")
+        close_button.setToolTip("Cerrar")
+        close_button.clicked.connect(self.close)
+        for button in (self.minimize_button, self.maximize_button, close_button):
+            button.setFixedWidth(34)
+
+        browse = QPushButton("📁")
+        browse.setToolTip("Elegir archivo de transcripción")
+        browse.setFixedWidth(42)
+        browse.clicked.connect(self.choose_file)
+
         actions = QHBoxLayout()
         actions.addWidget(self.listen_button, 1)
         actions.addWidget(copy_button)
         actions.addWidget(clear_button)
         actions.addWidget(save_button)
+        actions.addWidget(review_button)
+        actions.addWidget(browse)
 
         panel = QVBoxLayout()
+        panel.setContentsMargins(14, 12, 14, 12)
         title = QLabel("Speech Prompt")
         title.setObjectName("title")
         subtitle = QLabel("Dicta, revisa y guarda tus instrucciones rápidamente")
         subtitle.setObjectName("subtitle")
-        panel.addWidget(title)
+        heading = QHBoxLayout()
+        heading.addWidget(title)
+        heading.addStretch()
+        heading.addWidget(menu_button)
+        heading.addWidget(self.minimize_button)
+        heading.addWidget(self.maximize_button)
+        heading.addWidget(close_button)
+        panel.addLayout(heading)
         panel.addWidget(subtitle)
-        panel.addSpacing(18)
+        panel.addSpacing(6)
         panel.addWidget(self.status_label)
         panel.addWidget(self.text, 1)
-        panel.addSpacing(12)
-        panel.addWidget(QLabel("Archivo de transcripción"))
-        panel.addLayout(file_row)
-        panel.addSpacing(12)
+        panel.addSpacing(5)
         panel.addLayout(actions)
 
+        self.path_row = QHBoxLayout()
+        self.path_row.addWidget(self.file_input)
+        self.path_row.setContentsMargins(0, 0, 0, 0)
+        panel.insertLayout(panel.count() - 1, self.path_row)
+        self.file_input.hide()
+
         container = QWidget()
+        container.setObjectName("surface")
+        container.setMouseTracking(True)
         container.setLayout(panel)
         self.setCentralWidget(container)
         self.setStyleSheet(
             """
-            QWidget { background: #111827; color: #e5e7eb; }
-            QMainWindow { background: #111827; }
-            QLabel#title { font-size: 28px; font-weight: 700; color: #f9fafb; }
-            QLabel#subtitle { color: #9ca3af; font-size: 13px; }
-            QLabel#status { color: #67e8f9; font-weight: 600; padding: 8px 0; }
+            QWidget#surface { background: #111827; color: #e5e7eb;
+                border: 1px solid #334155; border-radius: 16px; }
+            QLabel#title { font-size: 20px; font-weight: 700; color: #f9fafb; }
+            QLabel#subtitle { color: #9ca3af; font-size: 11px; }
+            QLabel#status { color: #67e8f9; font-weight: 600; padding: 2px 0; }
             QPlainTextEdit, QLineEdit { background: #1f2937; border: 1px solid #374151;
-                border-radius: 10px; padding: 12px; color: #f9fafb; }
-            QPushButton { background: #273449; border: 1px solid #40506a; border-radius: 9px;
-                padding: 11px 15px; color: #e5e7eb; font-weight: 600; }
+                border-radius: 9px; padding: 7px; color: #f9fafb; }
+            QPushButton { background: #273449; border: 1px solid #40506a; border-radius: 8px;
+                padding: 7px 9px; color: #e5e7eb; font-weight: 600; font-size: 16px; }
             QPushButton:hover { background: #34445d; }
             QPushButton#primary { background: #0891b2; border: none; color: white; }
             QPushButton#primary:hover { background: #06b6d4; }
+            QPushButton#close:hover { background: #dc2626; }
+            QMenu { background: #1f2937; color: #f9fafb; border: 1px solid #40506a;
+                border-radius: 9px; }
+            QMenu::item { padding: 7px 24px; }
+            QMenu::item:selected { background: #0891b2; }
+            QWidget#surface:hover { border-color: #475569; }
             """
         )
+
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() != Qt.MouseButton.LeftButton:
+            super().mousePressEvent(event)
+            return
+
+        position = event.position().toPoint()
+        edges = self.resize_edges(position)
+        if edges and not self.isMaximized():
+            self._resize_edges = edges
+            self._resize_origin = event.globalPosition().toPoint()
+            self._resize_geometry = self.geometry()
+            event.accept()
+            return
+
+        if (
+            position.y() < 48
+            and not self.childAt(position) in
+            (self.minimize_button, self.maximize_button)
+        ):
+            self._drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._resize_origin is not None and self._resize_geometry is not None:
+            self.resize_from_mouse(event.globalPosition().toPoint())
+            event.accept()
+            return
+        if self._drag_position is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_position)
+            event.accept()
+            return
+        self.update_cursor(event.position().toPoint())
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        if self._resize_origin is None:
+            self.unsetCursor()
+        super().leaveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        self._drag_position = None
+        self._resize_origin = None
+        self._resize_geometry = None
+        self._resize_edges = Qt.Edge(0)
+        super().mouseReleaseEvent(event)
+
+    def resize_edges(self, position: QPoint) -> Qt.Edge:
+        margin = 18
+        edges = Qt.Edge(0)
+        if position.x() <= margin:
+            edges |= Qt.Edge.LeftEdge
+        elif position.x() >= self.width() - margin:
+            edges |= Qt.Edge.RightEdge
+        if position.y() <= margin:
+            edges |= Qt.Edge.TopEdge
+        elif position.y() >= self.height() - margin:
+            edges |= Qt.Edge.BottomEdge
+        return edges
+
+    def resize_from_mouse(self, position: QPoint) -> None:
+        delta = position - self._resize_origin
+        geometry = self._resize_geometry
+        minimum_width = self.minimumWidth()
+        minimum_height = self.minimumHeight()
+        if self._resize_edges & Qt.Edge.LeftEdge:
+            new_left = min(geometry.left() + delta.x(), geometry.right() - minimum_width)
+            geometry.setLeft(new_left)
+        if self._resize_edges & Qt.Edge.RightEdge:
+            geometry.setRight(max(geometry.right() + delta.x(), geometry.left() + minimum_width))
+        if self._resize_edges & Qt.Edge.TopEdge:
+            new_top = min(geometry.top() + delta.y(), geometry.bottom() - minimum_height)
+            geometry.setTop(new_top)
+        if self._resize_edges & Qt.Edge.BottomEdge:
+            geometry.setBottom(max(geometry.bottom() + delta.y(), geometry.top() + minimum_height))
+        self.setGeometry(geometry)
+
+    def update_cursor(self, position: QPoint) -> None:
+        if self.isMaximized():
+            self.unsetCursor()
+            return
+        edges = self.resize_edges(position)
+        if edges in (Qt.Edge.LeftEdge | Qt.Edge.RightEdge,):
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
+        elif edges in (Qt.Edge.TopEdge | Qt.Edge.BottomEdge,):
+            self.setCursor(Qt.CursorShape.SizeVerCursor)
+        elif edges in (Qt.Edge.TopEdge | Qt.Edge.LeftEdge, Qt.Edge.BottomEdge | Qt.Edge.RightEdge):
+            self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+        elif edges in (Qt.Edge.TopEdge | Qt.Edge.RightEdge, Qt.Edge.BottomEdge | Qt.Edge.LeftEdge):
+            self.setCursor(Qt.CursorShape.SizeBDiagCursor)
+        else:
+            self.unsetCursor()
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        if event.position().y() < 48:
+            self.toggle_maximize()
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
+    def toggle_maximize(self) -> None:
+        if self.isMaximized():
+            self.showNormal()
+            self.maximize_button.setText("□")
+        else:
+            self.showMaximized()
+            self.maximize_button.setText("❐")
 
     def choose_file(self) -> None:
         filename, _ = QFileDialog.getSaveFileName(
@@ -185,7 +359,8 @@ class SpeechPromptWindow(QMainWindow):
         self.worker.finished.connect(self.transcribe)
         self.worker.failed.connect(self.recording_failed)
         self.worker.status.connect(self.status_label.setText)
-        self.listen_button.setText("⏹  Detener escucha")
+        self.listen_button.setText("⏹")
+        self.listen_button.setToolTip("Detener escucha")
         self.thread = threading.Thread(target=self.worker.run, daemon=True)
         self.thread.start()
 
@@ -217,7 +392,8 @@ class SpeechPromptWindow(QMainWindow):
         self.worker = None
         self.thread = None
         self.listen_button.setEnabled(True)
-        self.listen_button.setText("🎙  Iniciar escucha")
+        self.listen_button.setText("🎙")
+        self.listen_button.setToolTip("Iniciar escucha")
 
     def copy_text(self) -> None:
         QApplication.clipboard().setText(self.text.toPlainText())
@@ -226,6 +402,44 @@ class SpeechPromptWindow(QMainWindow):
     def clear_text(self) -> None:
         self.text.clear()
         self.status_label.setText("Texto limpiado")
+
+    def show_full_text(self) -> None:
+        dialog = QMainWindow(self)
+        dialog.setWindowTitle("Texto completo — Speech Prompt")
+        dialog.setMinimumSize(620, 420)
+        editor = QPlainTextEdit(dialog)
+        editor.setPlainText(self.text.toPlainText())
+        editor.setReadOnly(False)
+        dialog.setCentralWidget(editor)
+        dialog.show()
+        self.full_text_window = dialog
+
+    def show_options_menu(self) -> None:
+        menu = QMenu(self)
+        choose_action = QAction("Elegir archivo de transcripción", self)
+        choose_action.triggered.connect(self.choose_file)
+        menu.addAction(choose_action)
+        path_action = QAction("Mostrar ruta del archivo", self)
+        path_action.setCheckable(True)
+        path_action.setChecked(self._path_visible)
+        path_action.triggered.connect(self.toggle_path_visibility)
+        menu.addAction(path_action)
+        full_text_action = QAction("Abrir auditoría del texto", self)
+        full_text_action.triggered.connect(self.show_full_text)
+        menu.addAction(full_text_action)
+        menu.addSeparator()
+        about_action = QAction("Acerca de Speech Prompt", self)
+        about_action.triggered.connect(
+            lambda: QMessageBox.information(
+                self, "Speech Prompt", "Dictado y transcripción rápida para tu flujo de trabajo."
+            )
+        )
+        menu.addAction(about_action)
+        menu.exec(self.mapToGlobal(self.rect().topRight()))
+
+    def toggle_path_visibility(self, visible: bool) -> None:
+        self._path_visible = visible
+        self.file_input.setVisible(visible)
 
     def save_text(self) -> None:
         value = self.text.toPlainText().strip()
