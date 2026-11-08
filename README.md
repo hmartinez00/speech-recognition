@@ -119,7 +119,7 @@ Tambien puedes escribir directamente a cualquier ruta, incluso fuera del reposit
 speech-prompt --file "C:\Users\TuUsuario\Documents\dictado.md"
 ```
 
-La ruta relativa se interpreta desde el directorio actual de la terminal. La transcripcion se anade al final del archivo destino; el flujo actual no inserta en la posicion del cursor. La clave se busca primero en `.opencode-secrets` del directorio actual, luego en `OPENROUTER_API_KEY` y finalmente junto a la instalacion de la herramienta.
+La ruta relativa se interpreta desde el directorio actual de la terminal. Cada nueva transcripcion se coloca al principio del archivo destino, para que el comentario mas reciente siempre aparezca arriba. La clave se busca primero en `.opencode-secrets` del directorio actual, luego en `OPENROUTER_API_KEY` y finalmente junto a la instalacion de la herramienta.
 
 ## Configuracion opcional
 

@@ -15,8 +15,12 @@ def append_transcription(path: Path, text: str) -> None:
         raise ValueError("No se puede escribir una transcripcion vacia")
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    prefix = ""
-    if path.exists() and path.stat().st_size:
-        prefix = "\n"
-    with path.open("a", encoding="utf-8", newline="\n") as destination:
-        destination.write(prefix + format_entry(text))
+    existing = ""
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+
+    entry = format_entry(text)
+    if existing:
+        entry += "\n" + existing
+
+    path.write_text(entry, encoding="utf-8", newline="\n")
