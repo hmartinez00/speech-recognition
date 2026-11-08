@@ -104,9 +104,6 @@ class SpeechPromptWindow(QMainWindow):
         self.resize(430, 285)
         self.setMinimumSize(360, 240)
         self._drag_position: QPoint | None = None
-        self._resize_origin: QPoint | None = None
-        self._resize_geometry = None
-        self._resize_edges = Qt.Edge(0)
         self._path_visible = False
         self.worker: RecordingWorker | None = None
         self.thread: threading.Thread | None = None
@@ -232,20 +229,61 @@ class SpeechPromptWindow(QMainWindow):
 
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
 
+    def nativeEvent(self, event_type, message):
+        """Delegate border hit-testing to Windows for native resizing."""
+        if sys.platform == "win32" and event_type == b"windows_generic_MSG":
+            import ctypes
+
+            class Point(ctypes.Structure):
+                _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+            class Msg(ctypes.Structure):
+                _fields_ = [
+                    ("hwnd", ctypes.c_void_p),
+                    ("message", ctypes.c_uint),
+                    ("wParam", ctypes.c_size_t),
+                    ("lParam", ctypes.c_ssize_t),
+                    ("time", ctypes.c_uint),
+                    ("pt", Point),
+                ]
+
+            msg = Msg.from_address(int(message))
+            if msg.message == 0x0084 and not self.isMaximized():  # WM_NCHITTEST
+                x = ctypes.c_short(msg.lParam & 0xFFFF).value
+                y = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
+                frame = self.frameGeometry()
+                margin = 10
+                left = x <= frame.left() + margin
+                right = x >= frame.right() - margin
+                top = y <= frame.top() + margin
+                bottom = y >= frame.bottom() - margin
+                result = None
+                if top and left:
+                    result = 13  # HTTOPLEFT
+                elif top and right:
+                    result = 14  # HTTOPRIGHT
+                elif bottom and left:
+                    result = 16  # HTBOTTOMLEFT
+                elif bottom and right:
+                    result = 17  # HTBOTTOMRIGHT
+                elif left:
+                    result = 10  # HTLEFT
+                elif right:
+                    result = 11  # HTRIGHT
+                elif top:
+                    result = 12  # HTTOP
+                elif bottom:
+                    result = 15  # HTBOTTOM
+                if result is not None:
+                    return True, result
+        return super().nativeEvent(event_type, message)
+
     def mousePressEvent(self, event) -> None:
         if event.button() != Qt.MouseButton.LeftButton:
             super().mousePressEvent(event)
             return
 
         position = event.position().toPoint()
-        edges = self.resize_edges(position)
-        if edges and not self.isMaximized():
-            self._resize_edges = edges
-            self._resize_origin = event.globalPosition().toPoint()
-            self._resize_geometry = self.geometry()
-            event.accept()
-            return
-
         if (
             position.y() < 48
             and not self.childAt(position) in
@@ -257,74 +295,18 @@ class SpeechPromptWindow(QMainWindow):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
-        if self._resize_origin is not None and self._resize_geometry is not None:
-            self.resize_from_mouse(event.globalPosition().toPoint())
-            event.accept()
-            return
         if self._drag_position is not None and event.buttons() & Qt.MouseButton.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag_position)
             event.accept()
             return
-        self.update_cursor(event.position().toPoint())
         super().mouseMoveEvent(event)
 
     def leaveEvent(self, event) -> None:
-        if self._resize_origin is None:
-            self.unsetCursor()
         super().leaveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
         self._drag_position = None
-        self._resize_origin = None
-        self._resize_geometry = None
-        self._resize_edges = Qt.Edge(0)
         super().mouseReleaseEvent(event)
-
-    def resize_edges(self, position: QPoint) -> Qt.Edge:
-        margin = 18
-        edges = Qt.Edge(0)
-        if position.x() <= margin:
-            edges |= Qt.Edge.LeftEdge
-        elif position.x() >= self.width() - margin:
-            edges |= Qt.Edge.RightEdge
-        if position.y() <= margin:
-            edges |= Qt.Edge.TopEdge
-        elif position.y() >= self.height() - margin:
-            edges |= Qt.Edge.BottomEdge
-        return edges
-
-    def resize_from_mouse(self, position: QPoint) -> None:
-        delta = position - self._resize_origin
-        geometry = self._resize_geometry
-        minimum_width = self.minimumWidth()
-        minimum_height = self.minimumHeight()
-        if self._resize_edges & Qt.Edge.LeftEdge:
-            new_left = min(geometry.left() + delta.x(), geometry.right() - minimum_width)
-            geometry.setLeft(new_left)
-        if self._resize_edges & Qt.Edge.RightEdge:
-            geometry.setRight(max(geometry.right() + delta.x(), geometry.left() + minimum_width))
-        if self._resize_edges & Qt.Edge.TopEdge:
-            new_top = min(geometry.top() + delta.y(), geometry.bottom() - minimum_height)
-            geometry.setTop(new_top)
-        if self._resize_edges & Qt.Edge.BottomEdge:
-            geometry.setBottom(max(geometry.bottom() + delta.y(), geometry.top() + minimum_height))
-        self.setGeometry(geometry)
-
-    def update_cursor(self, position: QPoint) -> None:
-        if self.isMaximized():
-            self.unsetCursor()
-            return
-        edges = self.resize_edges(position)
-        if edges in (Qt.Edge.LeftEdge | Qt.Edge.RightEdge,):
-            self.setCursor(Qt.CursorShape.SizeHorCursor)
-        elif edges in (Qt.Edge.TopEdge | Qt.Edge.BottomEdge,):
-            self.setCursor(Qt.CursorShape.SizeVerCursor)
-        elif edges in (Qt.Edge.TopEdge | Qt.Edge.LeftEdge, Qt.Edge.BottomEdge | Qt.Edge.RightEdge):
-            self.setCursor(Qt.CursorShape.SizeFDiagCursor)
-        elif edges in (Qt.Edge.TopEdge | Qt.Edge.RightEdge, Qt.Edge.BottomEdge | Qt.Edge.LeftEdge):
-            self.setCursor(Qt.CursorShape.SizeBDiagCursor)
-        else:
-            self.unsetCursor()
 
     def mouseDoubleClickEvent(self, event) -> None:
         if event.position().y() < 48:
