@@ -58,6 +58,27 @@ speech-prompt --dry-run
 speech-prompt --yes
 ```
 
+### Interfaz gráfica
+
+También puedes abrir una interfaz gráfica minimalista en modo oscuro:
+
+```bash
+speech-prompt-gui
+```
+
+Si ya tienes una instalación editable, instala también la dependencia gráfica:
+
+```bash
+python -m pip install -e ".[test]"
+```
+
+En una instalación normal, `PySide6` se instala automáticamente junto con el
+proyecto.
+
+Desde ella puedes iniciar y detener la escucha, revisar la frase transcrita,
+copiarla al portapapeles, elegir el archivo de destino y guardarla manteniendo
+las transcripciones más recientes al principio.
+
 Tambien puede ejecutarse sin instalar el comando:
 
 ```bash
