@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Speech Prompt",
+  "version": "0.1.0",
+  "description": "Graba voz y la transcribe con OpenRouter desde un popup.",
+  "action": {
+    "default_title": "Speech Prompt",
+    "default_popup": "popup.html"
+  },
+  "background": { "service_worker": "background.js" },
+  "commands": {
+    "start-recording": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "MacCtrl+Shift+Y"
+      },
+      "description": "Iniciar Speech Prompt"
+    }
+  },
+  "web_accessible_resources": [{"resources": ["record.html", "record.js"], "matches": ["<all_urls>"]}],
+  "permissions": ["storage"],
+  "host_permissions": ["https://openrouter.ai/*"],
+  "optional_host_permissions": ["<all_urls>"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

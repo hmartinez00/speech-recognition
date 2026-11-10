@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Speech Prompt</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="surface">
+    <h1>Speech Prompt</h1>
+    <p class="subtitle">Dicta, revisa y copia tu transcripción</p>
+    <p id="status" class="status">Listo</p>
+    <textarea id="text" placeholder="La frase reconocida aparecerá aquí…"></textarea>
+    <div class="actions">
+      <button id="record" class="primary" title="Iniciar escucha">🎙 Escuchar</button>
+      <button id="copy" title="Copiar texto">📋</button>
+      <button id="clear" title="Limpiar texto">🗑</button>
+    </div>
+    <details>
+      <summary>Configuración</summary>
+      <label for="apiKey">Clave de OpenRouter</label>
+      <input id="apiKey" type="password" autocomplete="off" placeholder="sk-or-…">
+      <label for="language">Idioma</label>
+      <input id="language" value="es" maxlength="10">
+      <label for="model">Modelo</label>
+      <input id="model" value="nvidia/nemotron-3.5-transcribe">
+      <button id="save">Guardar configuración</button>
+      <small>La clave se guarda únicamente en el almacenamiento local de Chrome.</small>
+    </details>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
