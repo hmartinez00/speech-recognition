@@ -4,8 +4,11 @@ const $ = (id) => document.getElementById(id);
 let recorder;
 let chunks = [];
 let stream;
+let sourceTabId;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  sourceTabId = tab?.id;
   const settings = await chrome.storage.local.get({ apiKey: '', language: 'es', model: DEFAULT_MODEL });
   $('apiKey').value = settings.apiKey;
   $('language').value = settings.language;
@@ -83,9 +86,33 @@ async function transcribeBlob(blob) {
     if (!response.ok) throw new Error(result.error?.message || `OpenRouter rechazó la solicitud (${response.status})`);
     if (!result.text?.trim()) throw new Error('OpenRouter no devolvió una transcripción útil.');
     $('text').value = result.text.trim();
+    await insertIntoActiveField(result.text.trim());
     setStatus('Transcripción lista');
   } catch (error) { setStatus(error.message, true); }
   finally { $('record').disabled = false; $('record').textContent = '🎙 Escuchar'; }
+}
+
+async function insertIntoActiveField(text) {
+  if (!sourceTabId) return;
+  try {
+    const response = await chrome.tabs.sendMessage(sourceTabId, {
+      type: 'speech-prompt-insert',
+      text
+    });
+    if (response?.ok) setStatus('Transcripción insertada en el campo activo');
+  } catch (_) {
+    setStatus('Transcripción lista; esta página no permite insertar texto directamente.');
+  }
+}
+
+async function insertIntoActiveField(text) {
+  if (!sourceTabId) return;
+  try {
+    const response = await chrome.tabs.sendMessage(sourceTabId, { type: 'speech-prompt-insert', text });
+    if (response?.ok) setStatus('Transcripción insertada en el campo activo');
+  } catch (_) {
+    setStatus('Transcripción lista; esta página no permite insertar texto directamente.');
+  }
 }
 
 function setStatus(message, error = false) { $('status').textContent = message; $('status').style.color = error ? '#fca5a5' : '#67e8f9'; }

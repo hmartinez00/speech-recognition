@@ -18,7 +18,8 @@
     }
   },
   "web_accessible_resources": [{"resources": ["record.html", "record.js"], "matches": ["<all_urls>"]}],
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab", "scripting"],
+  "content_scripts": [{"matches": ["<all_urls>"], "js": ["content.js"]}],
   "host_permissions": ["https://openrouter.ai/*"],
   "optional_host_permissions": ["<all_urls>"],
   "content_security_policy": {
