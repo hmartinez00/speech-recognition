@@ -8,6 +8,11 @@ textarea, input { width: 100%; border: 1px solid #374151; border-radius: 8px; pa
 textarea { height: 125px; resize: vertical; font: inherit; }
 label { display: block; margin: 9px 0 4px; color: #cbd5e1; font-size: 12px; }
 .actions { display: flex; gap: 7px; margin-top: 9px; }
+.recorder-frame { display: block; width: 100%; height: 46px; margin-top: 9px; border: 0; border-radius: 8px; background: transparent; }
+.recorder-page { width: 100%; height: 46px; margin: 0; overflow: hidden; background: transparent; }
+.recorder-control { width: 100%; height: 46px; padding: 0; overflow: hidden; }
+.recorder-control .status { display: none; }
+.recorder-control button { display: block; width: 100%; height: 46px; margin: 0; white-space: nowrap; }
 button { border: 1px solid #40506a; border-radius: 8px; padding: 8px 10px; background: #273449; color: #e5e7eb; cursor: pointer; font-weight: 600; }
 button:hover { background: #34445d; }
 button.primary { flex: 1; border: 0; background: #0891b2; color: white; }

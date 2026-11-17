@@ -8,12 +8,15 @@ document.addEventListener('keydown', (event) => {
     event.preventDefault();
     if (recorder) stopRecording();
   }
-  if (event.key === 'Escape') window.close();
 });
 
 button.addEventListener('click', stopRecording);
-
-startRecording();
+window.parent.postMessage({ type: 'speech-prompt-ready' }, '*');
+window.addEventListener('message', (event) => {
+  if (event.source !== window.parent) return;
+  if (event.data?.type === 'start-recording') startRecording();
+  if (event.data?.type === 'stop-recording') stopRecording();
+});
 
 async function startRecording() {
   try {
@@ -23,16 +26,16 @@ async function startRecording() {
     recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
     recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: 'audio/webm' });
-      window.opener?.postMessage({ type: 'speech-prompt-audio', blob }, '*');
-      window.close();
+      window.parent.postMessage({ type: 'speech-prompt-audio', blob }, '*');
     };
     recorder.start();
     button.disabled = false;
     button.textContent = '⏹ Detener';
     status.textContent = 'Escuchando… habla ahora';
+    window.parent.postMessage({ type: 'speech-prompt-started' }, '*');
   } catch (error) {
     status.textContent = error.name === 'NotAllowedError' ? 'Permiso de micrófono rechazado.' : error.message;
-    window.opener?.postMessage({ type: 'speech-prompt-error', message: status.textContent }, '*');
+    window.parent.postMessage({ type: 'speech-prompt-error', message: status.textContent }, '*');
   }
 }
 

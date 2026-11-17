@@ -5,6 +5,7 @@ let recorder;
 let chunks = [];
 let stream;
 let sourceTabId;
+let recorderFrameReady = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -25,49 +26,35 @@ $('copy').addEventListener('click', async () => { await navigator.clipboard.writ
 $('clear').addEventListener('click', () => { $('text').value = ''; setStatus('Texto limpiado'); });
 
 async function startRecording() {
-  const recordUrl = chrome.runtime.getURL('record.html');
-  const recordWindow = window.open(recordUrl, 'speechPromptRecorder', 'popup,width=420,height=180');
-  if (!recordWindow) {
-    setStatus('Chrome bloqueó la ventana de grabación. Permite ventanas emergentes para la extensión.', true);
-    return;
-  }
-  setStatus('Abriendo grabador…');
-  window.addEventListener('message', handleRecorderMessage, { once: false });
-  return;
-  /* Fallback kept below for browsers that allow microphone access in the popup. */
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    chunks = [];
-    recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-    recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-    recorder.onstop = transcribe;
-    recorder.start();
-    $('record').textContent = '⏹ Detener';
-    setStatus('Escuchando… habla ahora');
-  } catch (error) {
-    const message = error.name === 'NotAllowedError'
-      ? 'Permiso de micrófono rechazado. Permítelo en los ajustes del sitio para esta extensión y vuelve a cargarla.'
-      : 'No se pudo acceder al micrófono: ' + error.message;
-    setStatus(message, true);
-  }
+  const frame = $('recorder');
+  frame.hidden = false;
+  setStatus('Solicitando micrófono…');
+  if (recorderFrameReady) frame.contentWindow.postMessage({ type: 'start-recording' }, '*');
 }
 
 function handleRecorderMessage(event) {
-  if (event.data?.type === 'speech-prompt-error') setStatus(event.data.message, true);
-  if (event.data?.type === 'speech-prompt-audio') transcribeBlob(event.data.blob);
+  if (event.source !== $('recorder').contentWindow) return;
+  if (event.data?.type === 'speech-prompt-ready') recorderFrameReady = true;
+  if (event.data?.type === 'speech-prompt-started') {
+    $('record').textContent = '⏹ Detener';
+    setStatus('Escuchando… habla ahora');
+  }
+  if (event.data?.type === 'speech-prompt-error') {
+    $('recorder').hidden = true;
+    $('record').textContent = '🎙 Escuchar';
+    setStatus(event.data.message, true);
+  }
+  if (event.data?.type === 'speech-prompt-audio') {
+    $('recorder').hidden = true;
+    $('record').disabled = true;
+    $('record').textContent = '🎙 Procesando…';
+    setStatus('Procesando audio…');
+    transcribeBlob(event.data.blob);
+  }
 }
 
 function stopRecording() {
-  recorder.stop();
-  stream.getTracks().forEach((track) => track.stop());
-  recorder = null;
-  $('record').disabled = true;
-  $('record').textContent = '🎙 Procesando…';
-  setStatus('Procesando audio…');
-}
-
-async function transcribe() {
-  await transcribeBlob(new Blob(chunks, { type: 'audio/webm' }));
+  $('recorder').contentWindow.postMessage({ type: 'stop-recording' }, '*');
 }
 
 async function transcribeBlob(blob) {
@@ -89,7 +76,11 @@ async function transcribeBlob(blob) {
     await insertIntoActiveField(result.text.trim());
     setStatus('Transcripción lista');
   } catch (error) { setStatus(error.message, true); }
-  finally { $('record').disabled = false; $('record').textContent = '🎙 Escuchar'; }
+  finally {
+    $('record').disabled = false;
+    $('record').textContent = '🎙 Escuchar';
+    $('recorder').hidden = true;
+  }
 }
 
 async function insertIntoActiveField(text) {
@@ -103,3 +94,9 @@ async function insertIntoActiveField(text) {
 }
 
 function setStatus(message, error = false) { $('status').textContent = message; $('status').style.color = error ? '#fca5a5' : '#67e8f9'; }
+
+window.addEventListener('message', handleRecorderMessage);
+$('recorder').addEventListener('load', () => {
+  recorderFrameReady = true;
+  if (!$('recorder').hidden) $('recorder').contentWindow.postMessage({ type: 'start-recording' }, '*');
+});
