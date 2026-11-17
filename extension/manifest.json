@@ -7,6 +7,12 @@
     "default_title": "Speech Prompt",
     "default_popup": "popup.html"
   },
+  "icons": {
+      "16": "logo-speech-prompt.png",
+      "32": "logo-speech-prompt.png",
+      "48": "logo-speech-prompt.png",
+      "128": "logo-speech-prompt.png"
+  },
   "background": { "service_worker": "background.js" },
   "commands": {
     "start-recording": {

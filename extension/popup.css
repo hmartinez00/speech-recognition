@@ -2,7 +2,8 @@
 [hidden] { display: none !important; }
 body { width: 380px; margin: 0; background: #0b1220; color: #e5e7eb; font: 14px system-ui, sans-serif; }
 .surface { padding: 16px; }
-.title { margin: 0; color: #f9fafb; font-size: 20px; }
+.branding { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.logo { display: block; width: 42px; height: 42px; border-radius: 10px; object-fit: cover; }
 .subtitle { margin: 3px 0 10px; color: #9ca3af; font-size: 12px; }
 .status { min-height: 20px; margin: 0 0 7px; color: #67e8f9; font-weight: 600; }
 textarea, input { width: 100%; border: 1px solid #374151; border-radius: 8px; padding: 9px; background: #1f2937; color: #f9fafb; }
