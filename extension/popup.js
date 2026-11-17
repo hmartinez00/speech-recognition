@@ -36,16 +36,19 @@ function handleRecorderMessage(event) {
   if (event.source !== $('recorder').contentWindow) return;
   if (event.data?.type === 'speech-prompt-ready') recorderFrameReady = true;
   if (event.data?.type === 'speech-prompt-started') {
-    $('record').textContent = '⏹ Detener';
+    $('record').hidden = true;
+    $('recorder').hidden = false;
     setStatus('Escuchando… habla ahora');
   }
   if (event.data?.type === 'speech-prompt-error') {
     $('recorder').hidden = true;
-    $('record').textContent = '🎙 Escuchar';
+    $('record').hidden = false;
+    $('record').disabled = false;
     setStatus(event.data.message, true);
   }
   if (event.data?.type === 'speech-prompt-audio') {
     $('recorder').hidden = true;
+    $('record').hidden = false;
     $('record').disabled = true;
     $('record').textContent = '🎙 Procesando…';
     setStatus('Procesando audio…');
@@ -79,6 +82,7 @@ async function transcribeBlob(blob) {
   finally {
     $('record').disabled = false;
     $('record').textContent = '🎙 Escuchar';
+    $('record').hidden = false;
     $('recorder').hidden = true;
   }
 }

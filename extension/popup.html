@@ -12,12 +12,12 @@
       <div class="title">Speech Prompt</div>
       <div class="subtitle">Dicta, revisa y copia tu transcripción</div>
     </div>
-    <div class="actions">
+    <div class="actions recording-actions">
       <button id="record" class="primary" title="Iniciar escucha">🎙 Escuchar</button>
+      <iframe id="recorder" class="recorder-frame" src="record.html" title="Control de grabación" hidden></iframe>
       <button id="copy" title="Copiar texto">📋</button>
       <button id="clear" title="Limpiar texto">🗑</button>
     </div>
-    <iframe id="recorder" class="recorder-frame" src="record.html" title="Control de grabación" hidden></iframe>
     <p id="status" class="status">Listo</p>
     <details class="text-panel">
       <summary>Texto transcrito</summary>
