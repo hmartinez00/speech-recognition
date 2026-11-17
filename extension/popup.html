@@ -8,15 +8,20 @@
 </head>
 <body>
   <main class="surface">
-    <h1>Speech Prompt</h1>
-    <p class="subtitle">Dicta, revisa y copia tu transcripción</p>
-    <p id="status" class="status">Listo</p>
-    <textarea id="text" placeholder="La frase reconocida aparecerá aquí…"></textarea>
+    <div style="display:flex; align-items:flex-end; gap:8px;">
+      <div class="title">Speech Prompt</div>
+      <div class="subtitle">Dicta, revisa y copia tu transcripción</div>
+    </div>
     <div class="actions">
       <button id="record" class="primary" title="Iniciar escucha">🎙 Escuchar</button>
       <button id="copy" title="Copiar texto">📋</button>
       <button id="clear" title="Limpiar texto">🗑</button>
     </div>
+    <p id="status" class="status">Listo</p>
+    <details class="text-panel">
+      <summary>Texto transcrito</summary>
+      <textarea id="text" placeholder="La frase reconocida aparecerá aquí…"></textarea>
+    </details>
     <details>
       <summary>Configuración</summary>
       <label for="apiKey">Clave de OpenRouter</label>

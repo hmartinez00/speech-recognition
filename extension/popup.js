@@ -95,19 +95,6 @@ async function transcribeBlob(blob) {
 async function insertIntoActiveField(text) {
   if (!sourceTabId) return;
   try {
-    const response = await chrome.tabs.sendMessage(sourceTabId, {
-      type: 'speech-prompt-insert',
-      text
-    });
-    if (response?.ok) setStatus('Transcripción insertada en el campo activo');
-  } catch (_) {
-    setStatus('Transcripción lista; esta página no permite insertar texto directamente.');
-  }
-}
-
-async function insertIntoActiveField(text) {
-  if (!sourceTabId) return;
-  try {
     const response = await chrome.tabs.sendMessage(sourceTabId, { type: 'speech-prompt-insert', text });
     if (response?.ok) setStatus('Transcripción insertada en el campo activo');
   } catch (_) {
