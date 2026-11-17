@@ -27,6 +27,10 @@ $('clear').addEventListener('click', () => { $('text').value = ''; setStatus('Te
 
 async function startRecording() {
   const frame = $('recorder');
+  $('record').classList.remove('is-ready', 'is-processing', 'is-error');
+  $('record').classList.add('is-preparing');
+  $('record').textContent = '⌛ Preparando…';
+  $('record').disabled = true;
   frame.hidden = false;
   setStatus('Solicitando micrófono…');
   if (recorderFrameReady) frame.contentWindow.postMessage({ type: 'start-recording' }, '*');
@@ -38,18 +42,25 @@ function handleRecorderMessage(event) {
   if (event.data?.type === 'speech-prompt-started') {
     $('record').hidden = true;
     $('recorder').hidden = false;
+    $('recorder').classList.add('is-recording');
+    $('recorder').contentDocument?.documentElement.classList.add('is-recording');
     setStatus('Escuchando… habla ahora');
   }
   if (event.data?.type === 'speech-prompt-error') {
     $('recorder').hidden = true;
     $('record').hidden = false;
     $('record').disabled = false;
+    $('record').classList.remove('is-preparing', 'is-processing');
+    $('record').classList.add('is-error');
+    $('record').textContent = '🎙 Reintentar';
     setStatus(event.data.message, true);
   }
   if (event.data?.type === 'speech-prompt-audio') {
     $('recorder').hidden = true;
     $('record').hidden = false;
     $('record').disabled = true;
+    $('record').classList.remove('is-preparing', 'is-error');
+    $('record').classList.add('is-processing');
     $('record').textContent = '🎙 Procesando…';
     setStatus('Procesando audio…');
     transcribeBlob(event.data.blob);
@@ -82,8 +93,12 @@ async function transcribeBlob(blob) {
   finally {
     $('record').disabled = false;
     $('record').textContent = '🎙 Escuchar';
+    $('record').classList.remove('is-preparing', 'is-processing', 'is-error');
+    $('record').classList.add('is-ready');
     $('record').hidden = false;
     $('recorder').hidden = true;
+    $('recorder').classList.remove('is-recording');
+    $('recorder').contentDocument?.documentElement.classList.remove('is-recording');
   }
 }
 
@@ -102,5 +117,6 @@ function setStatus(message, error = false) { $('status').textContent = message; 
 window.addEventListener('message', handleRecorderMessage);
 $('recorder').addEventListener('load', () => {
   recorderFrameReady = true;
+  $('recorder').contentDocument?.documentElement.classList.remove('is-recording');
   if (!$('recorder').hidden) $('recorder').contentWindow.postMessage({ type: 'start-recording' }, '*');
 });

@@ -21,6 +21,15 @@ button:hover { background: #34445d; }
 button.primary { flex: 1; border: 0; background: #0891b2; color: white; }
 button.primary:hover { background: #06b6d4; }
 button:disabled { cursor: wait; opacity: .65; }
+.recording-actions > button.primary.is-ready { background: #0891b2; }
+.recording-actions > button.primary.is-preparing { background: #d97706; color: #fff7ed; }
+.recording-actions > button.primary.is-processing { background: #475569; color: #e2e8f0; }
+.recording-actions > button.primary.is-error { background: #b91c1c; color: #fef2f2; }
+.recorder-frame.is-recording { background: #991b1b; }
+.recorder-frame.is-recording .recorder-control button.primary,
+.recorder-frame.is-recording .recorder-control button.primary:hover,
+html.is-recording .recorder-control button.primary,
+html.is-recording .recorder-control button.primary:hover { border-color: #ef4444 !important; background: #dc2626 !important; color: #fff !important; }
 details { margin-top: 13px; color: #cbd5e1; }
 .text-panel { margin-top: 0; }
 summary { cursor: pointer; }
