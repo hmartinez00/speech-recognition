@@ -5,13 +5,19 @@
   "description": "Graba voz y la transcribe con OpenRouter desde un popup.",
   "action": {
     "default_title": "Speech Prompt",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/logo-speech-prompt.png",
+      "32": "icons/logo-speech-prompt.png",
+      "48": "icons/logo-speech-prompt.png",
+      "128": "icons/logo-speech-prompt.png"
+    }
   },
   "icons": {
-      "16": "logo-speech-prompt.png",
-      "32": "logo-speech-prompt.png",
-      "48": "logo-speech-prompt.png",
-      "128": "logo-speech-prompt.png"
+    "16": "icons/logo-speech-prompt.png",
+    "32": "icons/logo-speech-prompt.png",
+    "48": "icons/logo-speech-prompt.png",
+    "128": "icons/logo-speech-prompt.png"
   },
   "background": { "service_worker": "background.js" },
   "commands": {
